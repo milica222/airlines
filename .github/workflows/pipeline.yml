@@ -1,0 +1,31 @@
+name: Airline Delay Pipeline
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker compose build app notebook
+
+      - name: Start Spark cluster
+        run: docker compose up -d spark-master spark-worker
+
+      - name: Run pipeline inside Docker
+        run: docker compose run --rm app python src/pipeline.py
+
+      - name: Stop containers
+        if: always()
+        run: docker compose down
+
+      - name: Upload results artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: airline-results
+          path: results/

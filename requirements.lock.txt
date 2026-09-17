@@ -1,0 +1,10 @@
+pyspark==3.5.2
+jupyterlab==4.2.5
+pandas==2.2.2
+numpy==2.1.1
+matplotlib==3.9.2
+seaborn==0.13.2
+plotly==5.24.1
+folium==0.17.0
+pyarrow==17.0.0
+requests==2.32.3

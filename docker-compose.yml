@@ -1,0 +1,87 @@
+services:
+  spark-master:
+    image: apache/spark:3.5.2
+    container_name: airline-spark-master
+    command:
+      [
+        "/opt/spark/bin/spark-class",
+        "org.apache.spark.deploy.master.Master",
+        "--host",
+        "spark-master",
+        "--port",
+        "7077",
+        "--webui-port",
+        "8080"
+      ]
+    ports:
+      - "7077:7077"
+      - "8080:8080"
+    volumes:
+      - ./data:/workspace/data
+      - ./results:/workspace/results
+
+  spark-worker:
+    image: apache/spark:3.5.2
+    container_name: airline-spark-worker
+    depends_on:
+      - spark-master
+    command:
+      [
+        "/opt/spark/bin/spark-class",
+        "org.apache.spark.deploy.worker.Worker",
+        "--webui-port",
+        "8081",
+        "--cores",
+        "2",
+        "--memory",
+        "2G",
+        "spark://spark-master:7077"
+      ]
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./data:/workspace/data
+      - ./results:/workspace/results
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: airline-pipeline-app
+    depends_on:
+      - spark-master
+      - spark-worker
+    working_dir: /workspace
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_UI_PORT=4040
+      - SPARK_SQL_SHUFFLE_PARTITIONS=8
+      - SPARK_EXECUTOR_MEMORY=2g
+    volumes:
+      - ./:/workspace
+    command: ["bash", "-lc", "echo 'App container is ready.'; tail -f /dev/null"]
+
+  notebook:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: airline-notebook
+    depends_on:
+      - spark-master
+      - spark-worker
+    working_dir: /workspace
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_UI_PORT=4040
+      - SPARK_SQL_SHUFFLE_PARTITIONS=8
+      - SPARK_EXECUTOR_MEMORY=2g
+    volumes:
+      - ./:/workspace
+    ports:
+      - "8888:8888"
+    command:
+      [
+        "bash",
+        "-lc",
+        "jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password=''"
+      ]
