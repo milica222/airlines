@@ -2,6 +2,7 @@ services:
   spark-master:
     image: apache/spark:3.5.2
     container_name: airline-spark-master
+    user: root
     command:
       [
         "/opt/spark/bin/spark-class",
@@ -22,7 +23,7 @@ services:
 
   spark-worker:
     image: apache/spark:3.5.2
-    container_name: airline-spark-worker
+    user: root
     depends_on:
       - spark-master
     command:
@@ -37,8 +38,12 @@ services:
         "2G",
         "spark://spark-master:7077"
       ]
+    # No fixed host port: with --scale spark-worker=N each replica needs its own
+    # host port, so Docker assigns a free one. Find it with:
+    #   docker compose port --index=1 spark-worker 8081
+    # The master UI on :8080 lists every worker regardless.
     ports:
-      - "8081:8081"
+      - "8081"
     volumes:
       - ./data:/workspace/data
       - ./results:/workspace/results

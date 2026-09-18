@@ -4,10 +4,14 @@ from pyspark.sql import SparkSession
 
 def create_spark_session(app_name: str) -> SparkSession:
     """Create a SparkSession with explicit runtime settings from env vars."""
-    # The driver (this container) runs as root, but Spark workers run as a
-    # separate non-root user, so directories the driver creates must be
-    # world-writable or workers get permission-denied writing into them.
-    os.umask(0)
+    # The driver (this container) runs as root. The spark-master/spark-worker
+    # containers are pinned to user: root in docker-compose.yml to match, so
+    # executors can write into the output directories the driver creates on the
+    # shared bind mount. Without that, the apache/spark image runs as uid 185
+    # and every write fails with "Mkdirs failed to create ...".
+    # os.umask() alone does not fix it: Spark creates output directories via
+    # Hadoop's FileSystem API, which applies its own fs.permissions.umask-mode
+    # (default 022 -> mode 0755) and ignores the process umask.
     master = os.getenv("SPARK_MASTER", "local[*]")
     shuffle_partitions = os.getenv("SPARK_SQL_SHUFFLE_PARTITIONS", "8")
     executor_memory = os.getenv("SPARK_EXECUTOR_MEMORY", "2g")
